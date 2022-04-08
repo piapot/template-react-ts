@@ -1,55 +1,52 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import type { Dispatch, SetStateAction } from "react"
+import { useUpdateEffect, useLocalStorageState } from "ahooks"
+import { usePreferredDark } from "./usePreferredDark"
 
-type Theme = "light" | "dark"
-type SetTheme = Dispatch<SetStateAction<Theme>>
+type UseDarkModeReturn = [boolean, Dispatch<SetStateAction<boolean>>]
+type ColorScheme = "auto" | "light" | "dark"
 
-export function useDarkMode(): [Theme, SetTheme] {
-  const docEl = document.documentElement
-  const [theme, setTheme] = useState<Theme>("light")
+const KEY_COLOR_SCHEME = "color-scheme"
 
-  const toggleTheme = useCallback(
-    (theme: Theme) => {
-      if (theme === "dark") {
-        docEl.classList.add("dark")
-      } else {
-        docEl.classList.remove("dark")
-      }
-      setTheme(theme)
-      docEl.setAttribute("data-theme", theme)
-      localStorage.setItem("theme", theme)
-    },
-    [theme],
+export function useDarkMode(): UseDarkModeReturn {
+  const preferredDark = usePreferredDark()
+  const [colorScheme, setColorScheme] = useLocalStorageState<ColorScheme>(
+    KEY_COLOR_SCHEME,
+    { defaultValue: "auto" },
   )
+  const [isDark, setIsDark] = useState(colorScheme === "dark")
 
   useEffect(() => {
-    const query = "(prefers-color-scheme: dark)"
+    const docEl = document.documentElement
 
-    const changeTheme = (event: MediaQueryListEvent) => {
-      toggleTheme(event.matches ? "dark" : "light")
+    switch (colorScheme) {
+      case "dark":
+        docEl.classList.add("dark")
+        break
+      case "light":
+        docEl.classList.remove("dark")
+        break
+      default:
+        if (preferredDark) {
+          docEl.classList.add("dark")
+        } else {
+          docEl.classList.remove("dark")
+        }
+        break
     }
+  }, [preferredDark])
 
-    const preferDark = window?.matchMedia(query).matches
-    const theme =
-      localStorage.getItem("theme") || (preferDark ? "dark" : "light")
+  useUpdateEffect(() => {
+    const docEl = document.documentElement
 
-    if (window.matchMedia) {
-      window.matchMedia(query).addEventListener("change", changeTheme)
+    if (isDark) {
+      docEl.classList.add("dark")
+      setColorScheme("dark")
+    } else {
+      docEl.classList.remove("dark")
+      setColorScheme("light")
     }
+  }, [isDark])
 
-    docEl.setAttribute("data-theme", theme)
-    toggleTheme(theme as Theme)
-
-    return () => {
-      if (window.matchMedia) {
-        window.matchMedia(query).removeEventListener("change", changeTheme)
-      }
-    }
-  }, [!docEl.getAttribute("data-theme")])
-
-  useEffect(() => {
-    toggleTheme(theme)
-  }, [theme])
-
-  return [theme, setTheme]
+  return [isDark, setIsDark]
 }
