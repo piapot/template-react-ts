@@ -34,7 +34,7 @@ export function useDarkMode(): UseDarkModeReturn {
         }
         break
     }
-  }, [preferredDark])
+  }, [colorScheme, preferredDark])
 
   useUpdateEffect(() => {
     const docEl = document.documentElement
